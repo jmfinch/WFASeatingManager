@@ -16,6 +16,7 @@ import Host from '@/pages/host';
 import Setup from '@/pages/setup';
 import Display from '@/pages/display';
 import History from '@/pages/history';
+import Viewer from '@/pages/viewer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,12 @@ const queryClient = new QueryClient({
 });
 
 function Router() {
+  const [location] = useLocation();
+
+  // Viewer is a standalone read-only screen — no SeatingProvider needed.
+  // Safe to share publicly; has no path to host controls.
+  if (location === '/viewer') return <Viewer />;
+
   return (
     <SeatingProvider>
       <Switch>
