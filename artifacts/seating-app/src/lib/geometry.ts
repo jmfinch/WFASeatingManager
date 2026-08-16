@@ -49,7 +49,7 @@ export function buildSeatStatus(layout: RoomLayout, existing: Record<string, str
 
 export function countOpen(layout: RoomLayout, seatStatus: Record<string, string>) {
   const ids = allSeatIds(layout);
-  const open = ids.filter((id) => seatStatus[id] === 'open').length;
+  const open = ids.filter((id) => (seatStatus[id] || 'open') === 'open').length;
   return { open, total: ids.length };
 }
 
