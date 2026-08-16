@@ -1,0 +1,1 @@
+- [Church Seating App](church-seating-app.md) — architecture, geometry math rules, and critical implementation gotchas for the seating availability system

@@ -3,20 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Church Seating Availability API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: seating
+    description: Seating availability operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +25,468 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /seating/layout:
+    get:
+      operationId: getLayout
+      tags: [seating]
+      summary: Get current room layout configuration
+      responses:
+        "200":
+          description: Current layout or null if not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LayoutResponse"
+    put:
+      operationId: saveLayout
+      tags: [seating]
+      summary: Save room layout configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomLayout"
+      responses:
+        "200":
+          description: Saved layout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomLayout"
+
+  /seating/state:
+    get:
+      operationId: getSeatState
+      tags: [seating]
+      summary: Get current seat status map and last updated timestamp
+      responses:
+        "200":
+          description: Current seat state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatState"
+    put:
+      operationId: saveSeatState
+      tags: [seating]
+      summary: Save seat status map
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeatStateInput"
+      responses:
+        "200":
+          description: Saved seat state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatState"
+
+  /seating/baseline:
+    get:
+      operationId: getBaseline
+      tags: [seating]
+      summary: Get baseline row counts (normal week)
+      responses:
+        "200":
+          description: Baseline or null if not set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BaselineResponse"
+    put:
+      operationId: saveBaseline
+      tags: [seating]
+      summary: Save baseline row counts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BaselineLayout"
+      responses:
+        "200":
+          description: Saved baseline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BaselineLayout"
+
+  /seating/summary:
+    get:
+      operationId: getSeatingsummary
+      tags: [seating]
+      summary: Get live open seat count summary
+      responses:
+        "200":
+          description: Open count summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatingSummary"
+
+  /seating/history:
+    get:
+      operationId: listHistory
+      tags: [seating]
+      summary: List all archived gathering summaries (index)
+      responses:
+        "200":
+          description: List of gathering summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GatheringSummary"
+    post:
+      operationId: saveGathering
+      tags: [seating]
+      summary: Archive a gathering record (final seat state + event log)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GatheringRecord"
+      responses:
+        "201":
+          description: Saved gathering summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatheringSummary"
+
+  /seating/history/{id}:
+    get:
+      operationId: getGathering
+      tags: [seating]
+      summary: Get full detail for one archived gathering
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full gathering record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatheringRecord"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGathering
+      tags: [seating]
+      summary: Delete an archived gathering
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /seating/analyze:
+    post:
+      operationId: analyzeGathering
+      tags: [seating]
+      summary: Run AI analysis on gathering data via server-side Anthropic API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisRequest"
+      responses:
+        "200":
+          description: Analysis text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+        "400":
+          description: Bad request (missing key or prompt)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    RoomSection:
+      type: object
+      required: [seats, rows]
+      properties:
+        seats:
+          type: number
+        rows:
+          type: number
+        angleDeg:
+          type: number
+
+    WelcomeLine:
+      type: object
+      required: [text, fontSize, bold, italic]
+      properties:
+        text:
+          type: string
+        fontSize:
+          type: number
+        bold:
+          type: boolean
+        italic:
+          type: boolean
+
+    SeatColors:
+      type: object
+      required: [open, unavailable]
+      properties:
+        open:
+          type: string
+        unavailable:
+          type: string
+
+    RoomLayout:
+      type: object
+      required: [center, left, right, aisleSlots, rowGap, stageGap, welcomeLines, colors, gatheringNames]
+      properties:
+        center:
+          $ref: "#/components/schemas/RoomSection"
+        left:
+          $ref: "#/components/schemas/RoomSection"
+        right:
+          $ref: "#/components/schemas/RoomSection"
+        aisleSlots:
+          type: number
+        rowGap:
+          type: number
+        stageGap:
+          type: number
+        welcomeLines:
+          type: array
+          items:
+            $ref: "#/components/schemas/WelcomeLine"
+        colors:
+          $ref: "#/components/schemas/SeatColors"
+        gatheringNames:
+          type: array
+          items:
+            type: string
+
+    LayoutResponse:
+      type: object
+      required: [layout]
+      properties:
+        layout:
+          oneOf:
+            - $ref: "#/components/schemas/RoomLayout"
+            - type: "null"
+
+    SeatState:
+      type: object
+      required: [seatStatus, lastUpdated]
+      properties:
+        seatStatus:
+          type: object
+          additionalProperties:
+            type: string
+        lastUpdated:
+          type: ["string", "null"]
+
+    SeatStateInput:
+      type: object
+      required: [seatStatus]
+      properties:
+        seatStatus:
+          type: object
+          additionalProperties:
+            type: string
+        lastUpdated:
+          type: ["string", "null"]
+
+    BaselineSectionRows:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: number
+
+    BaselineLayout:
+      type: object
+      required: [left, center, right]
+      properties:
+        left:
+          $ref: "#/components/schemas/BaselineSectionRows"
+        center:
+          $ref: "#/components/schemas/BaselineSectionRows"
+        right:
+          $ref: "#/components/schemas/BaselineSectionRows"
+
+    BaselineResponse:
+      type: object
+      required: [baseline]
+      properties:
+        baseline:
+          oneOf:
+            - $ref: "#/components/schemas/BaselineLayout"
+            - type: "null"
+
+    SeatingSummary:
+      type: object
+      required: [open, total, lastUpdated]
+      properties:
+        open:
+          type: number
+        total:
+          type: number
+        lastUpdated:
+          type: ["string", "null"]
+
+    SectionTotals:
+      type: object
+      required: [open, total, filled]
+      properties:
+        open:
+          type: number
+        total:
+          type: number
+        filled:
+          type: number
+
+    GatheringTotals:
+      type: object
+      required: [overall, bySection]
+      properties:
+        overall:
+          $ref: "#/components/schemas/SectionTotals"
+        bySection:
+          type: object
+          required: [left, center, right]
+          properties:
+            left:
+              $ref: "#/components/schemas/SectionTotals"
+            center:
+              $ref: "#/components/schemas/SectionTotals"
+            right:
+              $ref: "#/components/schemas/SectionTotals"
+
+    ExtraRows:
+      type: object
+      required: [left, center, right]
+      properties:
+        left:
+          type: number
+        center:
+          type: number
+        right:
+          type: number
+
+    SeatEvent:
+      type: object
+      required: [t, type]
+      properties:
+        t:
+          type: string
+        type:
+          type: string
+        id:
+          type: ["string", "null"]
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        status:
+          type: ["string", "null"]
+        count:
+          type: ["number", "null"]
+
+    GatheringSummary:
+      type: object
+      required: [id, date, gathering, savedAt, overallOpen, overallTotal, extraRows]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+        gathering:
+          type: string
+        savedAt:
+          type: string
+        overallOpen:
+          type: number
+        overallTotal:
+          type: number
+        extraRows:
+          $ref: "#/components/schemas/ExtraRows"
+
+    GatheringRecord:
+      type: object
+      required: [id, date, gathering, savedAt, overallOpen, overallTotal, extraRows, layoutSnapshot, seatStatus, totals, events]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+        gathering:
+          type: string
+        savedAt:
+          type: string
+        overallOpen:
+          type: number
+        overallTotal:
+          type: number
+        extraRows:
+          $ref: "#/components/schemas/ExtraRows"
+        layoutSnapshot:
+          $ref: "#/components/schemas/RoomLayout"
+        seatStatus:
+          type: object
+          additionalProperties:
+            type: string
+        totals:
+          $ref: "#/components/schemas/GatheringTotals"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeatEvent"
+
+    AnalysisRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+
+    AnalysisResult:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string

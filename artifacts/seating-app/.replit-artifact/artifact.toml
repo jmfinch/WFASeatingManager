@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Church Seating App"
+description = "A church seating availability app with two screens: a Host Control screen (used on an iPad) where hosts can tap individual seats to toggle them open or unavailable, and a Display screen (shown on a TV at the auditorium entrance) showing the full room layout and open seat count in real time. Includes a visual drag-and-drop room layout editor for configuring any room shape, gathering history with per-session archiving, and AI-powered trend analysis."
+version = "1.0.0"
+id = "artifacts/seating-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24581
+
+[services.development]
+run = "pnpm --filter @workspace/seating-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/seating-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/seating-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24581"
+BASE_PATH = "/"
