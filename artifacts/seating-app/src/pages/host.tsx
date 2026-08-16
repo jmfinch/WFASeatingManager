@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { useSeating } from '@/context/seating-context';
 import { computeGeometry, countOpen, computeTotals, computeExtraRows, relativeTime, DEFAULT_LAYOUT } from '@/lib/geometry';
@@ -21,6 +21,24 @@ export default function Host() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [gatheringIdx, setGatheringIdx] = useState(0);
   const saveGathering = useSaveGathering();
+
+  // Wrap toggleSeat with an undo toast so an accidental tap can be reversed
+  // within 3 seconds without hunting for the seat again.
+  const handleToggleSeat = useCallback(
+    (id: string) => {
+      const wasOpen = (seatStatus[id] ?? 'open') === 'open';
+      toggleSeat(id);
+      toast(wasOpen ? 'Seat marked unavailable' : 'Seat reopened', {
+        duration: 3000,
+        position: 'bottom-center',
+        action: {
+          label: 'Undo',
+          onClick: () => toggleSeat(id),
+        },
+      });
+    },
+    [seatStatus, toggleSeat],
+  );
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -133,7 +151,7 @@ export default function Host() {
             geometry={geometry} 
             seatStatus={seatStatus} 
             editable={true} 
-            onToggleSeat={toggleSeat} 
+            onToggleSeat={handleToggleSeat} 
           />
         </ZoomPane>
       </main>
